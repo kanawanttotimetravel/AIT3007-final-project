@@ -1,7 +1,8 @@
 from magent2.environments import battle_v4
 import os
 import cv2
-
+from torch_model import QNetwork
+import torch
 
 if __name__ == "__main__":
     env = battle_v4.env(map_size=45, render_mode="rgb_array")
@@ -9,6 +10,13 @@ if __name__ == "__main__":
     os.makedirs(vid_dir, exist_ok=True)
     fps = 35
     frames = []
+
+    q_network_2 = QNetwork(
+        env.observation_space("red_0").shape, env.action_space("red_0").n
+    )
+    q_network_2.load_state_dict(
+        torch.load("red.pt", weights_only=True, map_location="cpu")
+    )
 
     # random policies
     env.reset()
@@ -18,7 +26,17 @@ if __name__ == "__main__":
         if termination or truncation:
             action = None  # this agent has died
         else:
-            action = env.action_space(agent).sample()
+            agent_handle = agent.split("_")[0]
+            if agent_handle == "blue":
+                observation = (
+                    torch.Tensor(observation).float().permute([2, 0, 1]).unsqueeze(0)
+                )
+                with torch.no_grad():
+                    q_values = q_network_2(observation)
+                action = torch.argmax(q_values, dim=1).numpy()[0]
+            else:
+                action = env.action_space(agent).sample()
+
 
         env.step(action)
 
@@ -41,8 +59,7 @@ if __name__ == "__main__":
     # pretrained policies
     frames = []
     env.reset()
-    from torch_model import QNetwork
-    import torch
+
 
     q_network = QNetwork(
         env.observation_space("red_0").shape, env.action_space("red_0").n
@@ -66,7 +83,12 @@ if __name__ == "__main__":
                     q_values = q_network(observation)
                 action = torch.argmax(q_values, dim=1).numpy()[0]
             else:
-                action = env.action_space(agent).sample()
+                observation = (
+                    torch.Tensor(observation).float().permute([2, 0, 1]).unsqueeze(0)
+                )
+                with torch.no_grad():
+                    q_values = q_network_2(observation)
+                action = torch.argmax(q_values, dim=1).numpy()[0]
 
         env.step(action)
 
