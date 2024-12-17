@@ -8,7 +8,7 @@ if __name__ == "__main__":
     env = battle_v4.env(map_size=45, render_mode="rgb_array")
     vid_dir = "video"
     os.makedirs(vid_dir, exist_ok=True)
-    fps = 35
+    fps = 90
     frames = []
 
     q_network_2 = QNetwork(
