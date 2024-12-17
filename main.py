@@ -15,7 +15,7 @@ if __name__ == "__main__":
         env.observation_space("red_0").shape, env.action_space("red_0").n
     )
     q_network_2.load_state_dict(
-        torch.load("red.pt", weights_only=True, map_location="cpu")
+        torch.load("blue.pt", weights_only=True, map_location="cpu")
     )
 
     # random policies

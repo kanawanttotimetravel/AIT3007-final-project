@@ -34,6 +34,14 @@ def eval():
     )
     final_q_network.to(device)
 
+    my_network = FinalQNetwork(
+        env.observation_space("red_0").shape, env.action_space("red_0").n
+    )
+    my_network.load_state_dict(
+        torch.load("blue.pt", weights_only=True, map_location="cpu")
+    )
+    my_network.to(device)
+
     def pretrain_policy(env, agent, obs):
         observation = (
             torch.Tensor(obs).float().permute([2, 0, 1]).unsqueeze(0).to(device)
@@ -43,6 +51,14 @@ def eval():
         return torch.argmax(q_values, dim=1).cpu().numpy()[0]
 
     def final_pretrain_policy(env, agent, obs):
+        observation = (
+            torch.Tensor(obs).float().permute([2, 0, 1]).unsqueeze(0).to(device)
+        )
+        with torch.no_grad():
+            q_values = final_q_network(observation)
+        return torch.argmax(q_values, dim=1).cpu().numpy()[0]
+    
+    def my_policy(env, agent, obs):
         observation = (
             torch.Tensor(obs).float().permute([2, 0, 1]).unsqueeze(0).to(device)
         )
@@ -101,7 +117,7 @@ def eval():
     print("Eval with random policy")
     print(
         run_eval(
-            env=env, red_policy=random_policy, blue_policy=random_policy, n_episode=30
+            env=env, red_policy=random_policy, blue_policy=my_policy, n_episode=30
         )
     )
     print("=" * 20)
@@ -109,7 +125,7 @@ def eval():
     print("Eval with trained policy")
     print(
         run_eval(
-            env=env, red_policy=pretrain_policy, blue_policy=random_policy, n_episode=30
+            env=env, red_policy=pretrain_policy, blue_policy=my_policy, n_episode=30
         )
     )
     print("=" * 20)
@@ -119,7 +135,7 @@ def eval():
         run_eval(
             env=env,
             red_policy=final_pretrain_policy,
-            blue_policy=random_policy,
+            blue_policy=my_policy,
             n_episode=30,
         )
     )
