@@ -2,7 +2,16 @@ from magent2.environments import battle_v4
 import os
 import cv2
 from torch_model import QNetwork
+from final_torch_model import QNetwork as FinalQNetwork
+
 import torch
+
+def load_network(path, architecture, observation_space, action_space):
+    model = architecture(observation_space, action_space)
+    model.load_state_dict(
+        torch.load(path, weights_only=True, map_location="cpu")
+    )
+    return model
 
 if __name__ == "__main__":
     env = battle_v4.env(map_size=45, render_mode="rgb_array")
@@ -11,12 +20,10 @@ if __name__ == "__main__":
     fps = 60
     frames = []
 
-    q_network_2 = QNetwork(
-        env.observation_space("red_0").shape, env.action_space("red_0").n
-    )
-    q_network_2.load_state_dict(
-        torch.load("blue.pt", weights_only=True, map_location="cpu")
-    )
+    observation_space = env.observation_space("red_0").shape
+    action_space = env.action_space("red_0").n
+
+    q_network_2 = load_network('blue.pt', FinalQNetwork, observation_space, action_space)
 
     # random policies
     env.reset()
