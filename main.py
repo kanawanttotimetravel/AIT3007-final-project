@@ -3,27 +3,43 @@ import os
 import cv2
 from torch_model import QNetwork
 from final_torch_model import QNetwork as FinalQNetwork
+from my_model import QMix
+import numpy as np
 
 import torch
 
 def load_network(path, architecture, observation_space, action_space):
-    model = architecture(observation_space, action_space)
+    if architecture == QMix:
+        model = architecture(np.prod(np.array(observation_space)), 81, action_space)
+    else:
+        model = architecture(observation_space, action_space)
+    
     model.load_state_dict(
-        torch.load(path, weights_only=True, map_location="cpu")
+        torch.load(path, map_location="cpu")
     )
     return model
+
+def get_q_val(q_network, observation):
+    if isinstance(q_network, QMix):
+        return q_network.get_q_values(observation)
+    return q_network(observation)
+
 
 if __name__ == "__main__":
     env = battle_v4.env(map_size=45, render_mode="rgb_array")
     vid_dir = "video"
     os.makedirs(vid_dir, exist_ok=True)
-    fps = 60
+    fps = 45
     frames = []
 
     observation_space = env.observation_space("red_0").shape
     action_space = env.action_space("red_0").n
 
-    q_network_2 = load_network('blue.pt', FinalQNetwork, observation_space, action_space)
+    # q_network_2 = load_network('blue.pt', FinalQNetwork, observation_space, action_space)
+
+    qmix = load_network('qmix_ver1.pt', QMix, observation_space, action_space)
+
+    my_network = qmix
 
     # random policies
     env.reset()
@@ -39,7 +55,8 @@ if __name__ == "__main__":
                     torch.Tensor(observation).float().permute([2, 0, 1]).unsqueeze(0)
                 )
                 with torch.no_grad():
-                    q_values = q_network_2(observation)
+                    # q_values = q_network_2(observation)
+                    q_values = get_q_val(my_network, observation)
                 action = torch.argmax(q_values, dim=1).numpy()[0]
             else:
                 action = env.action_space(agent).sample()
@@ -94,7 +111,8 @@ if __name__ == "__main__":
                     torch.Tensor(observation).float().permute([2, 0, 1]).unsqueeze(0)
                 )
                 with torch.no_grad():
-                    q_values = q_network_2(observation)
+                    # q_values = q_network_2(observation)
+                    q_values = get_q_val(my_network, observation)
                 action = torch.argmax(q_values, dim=1).numpy()[0]
 
         env.step(action)
