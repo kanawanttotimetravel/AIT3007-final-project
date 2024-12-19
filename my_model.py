@@ -69,3 +69,39 @@ class QMix(nn.Module):
         # Reshape and return
         q_tot = y.view(bs, self.action_shape)  # Changed shape
         return q_tot
+
+    def get_q_values(self, states):
+        """
+        Computes Q-values for all actions based on the state alone, without agent Q-values.
+
+        Args:
+            states: (torch.Tensor) State observation [batch_size, state_dim]
+
+        Returns:
+            q_tot: (torch.Tensor) Q-values for all actions [batch_size, action_shape]
+        """
+        bs = states.size(0)
+        states = states.reshape(-1, self.state_dim)
+
+        # First layer (using dummy agent Q-values)
+        # We create dummy agent Q-values of zeros, as we only want to use the state
+        dummy_agent_qs = torch.zeros((states.size(0), 1, self.n_agents), device=states.device)
+        w1 = self.hyper_w_1(states).abs() if self.abs else self.hyper_w_1(states)
+        b1 = self.hyper_b_1(states)
+        w1 = w1.view(-1, self.n_agents, self.embed_dim)
+        b1 = b1.view(-1, 1, self.embed_dim)
+        hidden = F.elu(torch.bmm(dummy_agent_qs, w1) + b1)
+
+        # Second layer
+        w_final = self.hyper_w_final(states).abs() if self.abs else self.hyper_w_final(states)
+        w_final = w_final.view(-1, self.embed_dim, self.action_shape)
+
+        # State-dependent bias
+        v = self.V(states).view(-1, 1, self.action_shape)
+
+        # Compute final output
+        y = torch.bmm(hidden, w_final) + v
+
+        # Reshape and return
+        q_tot = y.view(bs, self.action_shape)
+        return q_tot
